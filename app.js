@@ -241,7 +241,7 @@ entryForm.addEventListener("submit", async (e) => {
     return;
   }
   if (!getApiKey()) {
-    setStatus("Add your Anthropic API key first (tap ⚙️).", true);
+    setStatus("Add your Gemini API key first (tap ⚙️).", true);
     setupCard.hidden = false;
     return;
   }
