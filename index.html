@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Calorie Tracker</title>
+
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" />
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+<meta name="theme-color" content="#ff7a59" />
+
+<!-- iOS "Add to Home Screen" standalone app behavior -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Calories" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="bg-glow"></div>
+
+  <header>
+    <div class="header-inner">
+      <div class="brand">
+        <span class="brand-mark">🍽️</span>
+        <h1>Calorie Tracker</h1>
+      </div>
+      <div class="header-actions">
+        <button type="button" id="settings-btn" class="icon-btn" aria-label="Settings">⚙️</button>
+        <input type="date" id="date-picker" />
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="card" id="setup-card" hidden>
+      <h2>One-time setup</h2>
+      <p class="setup-copy">
+        This app calls Google's Gemini directly from your phone, so it needs your own free
+        Gemini API key. Get one at <strong>aistudio.google.com</strong> (no credit card needed),
+        then paste it below. It's saved only on this phone, never sent anywhere except to
+        Google when analyzing a meal.
+      </p>
+      <input type="password" id="api-key-input" placeholder="AIza..." autocomplete="off" />
+      <button type="button" id="save-key-btn">Save key</button>
+      <p id="setup-status"></p>
+    </section>
+
+    <section class="card accent-card" id="add-entry-card">
+      <div class="card-header-row">
+        <h2>Add a meal</h2>
+      </div>
+      <form id="entry-form">
+        <label class="file-label" for="image-input">
+          <span class="file-label-icon">📷</span>
+          <span id="file-label-text">Add a photo <em>(optional)</em></span>
+          <input type="file" id="image-input" accept="image/*" capture="environment" />
+        </label>
+        <img id="image-preview" hidden />
+        <textarea id="description-input" placeholder="Describe what you ate (optional if you added a photo)"></textarea>
+        <button type="submit" id="submit-btn">
+          <span class="btn-icon">✨</span> Analyze &amp; add
+        </button>
+      </form>
+      <p id="status-message"></p>
+    </section>
+
+    <section class="card">
+      <div class="card-header-row">
+        <h2>Today's totals</h2>
+        <button type="button" id="edit-goal-btn" class="link-btn">Set goal</button>
+      </div>
+      <div class="totals" id="totals"></div>
+      <div id="goal-progress"></div>
+    </section>
+
+    <section class="card">
+      <h2>Log</h2>
+      <div id="entries-list"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-header-row">
+        <h2>Progress</h2>
+        <div class="period-toggle">
+          <button type="button" class="period-btn active" data-period="week">Week</button>
+          <button type="button" class="period-btn" data-period="month">Month</button>
+        </div>
+      </div>
+      <div id="progress-summary"></div>
+      <div id="progress-days"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
