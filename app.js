@@ -2,6 +2,7 @@ const STORAGE_KEYS = {
   apiKey: "ct_api_key",
   entries: "ct_entries",
   goal: "ct_goal",
+  activities: "ct_activities",
 };
 
 const MODEL = "gemini-3.6-flash";
@@ -52,6 +53,18 @@ function saveAllEntries(entries) {
     );
     localStorage.setItem(STORAGE_KEYS.entries, JSON.stringify(stripped));
   }
+}
+
+function loadAllActivities() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.activities) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveAllActivities(activities) {
+  localStorage.setItem(STORAGE_KEYS.activities, JSON.stringify(activities));
 }
 
 function getGoal() {
@@ -181,6 +194,8 @@ const setupCard = document.getElementById("setup-card");
 const apiKeyInput = document.getElementById("api-key-input");
 const saveKeyBtn = document.getElementById("save-key-btn");
 const setupStatus = document.getElementById("setup-status");
+const addActivityBtn = document.getElementById("add-activity-btn");
+const activityListEl = document.getElementById("activity-list");
 
 let currentPeriod = "week";
 let resizedImageDataUrl = null;
@@ -308,26 +323,87 @@ function refreshGoalButton() {
   editGoalBtn.textContent = goal ? `Goal: ${goal} kcal` : "Set goal";
 }
 
-function renderGoalProgress(caloriesToday) {
+function getBurnedForDate(date) {
+  return loadAllActivities()
+    .filter((a) => a.date === date)
+    .reduce((s, a) => s + (a.calories || 0), 0);
+}
+
+function renderGoalProgress(caloriesToday, burnedToday) {
   const goal = getGoal();
   if (!goal) {
     goalProgressEl.innerHTML = "";
     return;
   }
-  const pct = Math.min(100, Math.round((caloriesToday / goal) * 100));
-  const over = caloriesToday > goal;
-  const remaining = goal - caloriesToday;
+  const adjustedGoal = goal + burnedToday;
+  const pct = Math.min(100, Math.round((caloriesToday / adjustedGoal) * 100));
+  const over = caloriesToday > adjustedGoal;
+  const remaining = adjustedGoal - caloriesToday;
+  const burnedNote = burnedToday > 0 ? ` (+${burnedToday} from exercise)` : "";
   goalProgressEl.innerHTML = `
     <div class="goal-bar-track">
       <div class="goal-bar-fill ${over ? "over" : ""}" style="width: ${pct}%"></div>
     </div>
     <div class="goal-caption">${
       over
-        ? `${Math.abs(remaining)} kcal over your ${goal} kcal goal`
-        : `${remaining} kcal remaining of your ${goal} kcal goal`
+        ? `${Math.abs(remaining)} kcal over your ${goal} kcal goal${burnedNote}`
+        : `${remaining} kcal remaining of your ${goal} kcal goal${burnedNote}`
     }</div>
   `;
 }
+
+// ---------- activity ----------
+
+addActivityBtn.addEventListener("click", () => {
+  const name = prompt("What did you do? (e.g. Running, Gym, Cycling)", "");
+  if (name === null) return;
+  const caloriesValue = prompt("Calories burned:", "");
+  if (caloriesValue === null) return;
+  const calories = parseInt(caloriesValue.trim(), 10);
+  if (Number.isNaN(calories)) return;
+
+  const activities = loadAllActivities();
+  activities.push({
+    id: uid(),
+    date: datePicker.value,
+    name: name.trim() || "Exercise",
+    calories,
+    createdAt: new Date().toISOString(),
+  });
+  saveAllActivities(activities);
+  loadDay();
+  loadProgress();
+});
+
+function renderActivities(dayActivities) {
+  if (!dayActivities.length) {
+    activityListEl.innerHTML = "";
+    return;
+  }
+  activityListEl.innerHTML = dayActivities
+    .map(
+      (a) => `
+        <div class="activity-row" data-id="${a.id}">
+          <span class="activity-name">${escapeHtml(a.name)}</span>
+          <span class="activity-right">
+            <span class="activity-calories">-${a.calories} kcal</span>
+            <button type="button" class="activity-delete" data-action="delete-activity">Delete</button>
+          </span>
+        </div>
+      `
+    )
+    .join("");
+}
+
+activityListEl.addEventListener("click", (e) => {
+  const button = e.target.closest('button[data-action="delete-activity"]');
+  if (!button) return;
+  const id = e.target.closest(".activity-row").dataset.id;
+  if (!confirm("Delete this activity?")) return;
+  saveAllActivities(loadAllActivities().filter((a) => a.id !== id));
+  loadDay();
+  loadProgress();
+});
 
 // ---------- day log ----------
 
@@ -336,6 +412,9 @@ function loadDay() {
   const dayEntries = loadAllEntries()
     .filter((e) => e.date === date)
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  const dayActivities = loadAllActivities()
+    .filter((a) => a.date === date)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 
   const totals = {
     calories: dayEntries.reduce((s, e) => s + (e.calories || 0), 0),
@@ -343,10 +422,12 @@ function loadDay() {
     carbs_g: round1(dayEntries.reduce((s, e) => s + (e.carbsG || 0), 0)),
     fat_g: round1(dayEntries.reduce((s, e) => s + (e.fatG || 0), 0)),
   };
+  const burnedToday = dayActivities.reduce((s, a) => s + (a.calories || 0), 0);
 
   renderTotals(totals);
-  renderGoalProgress(totals.calories);
+  renderGoalProgress(totals.calories, burnedToday);
   renderEntries(dayEntries);
+  renderActivities(dayActivities);
 }
 
 function round1(n) {
@@ -446,10 +527,15 @@ function loadProgress() {
   const end = new Date(`${datePicker.value}T00:00:00`);
   const goal = getGoal();
   const all = loadAllEntries();
+  const allActivities = loadAllActivities();
 
   const byDate = {};
   for (const e of all) {
     byDate[e.date] = (byDate[e.date] || 0) + (e.calories || 0);
+  }
+  const burnedByDate = {};
+  for (const a of allActivities) {
+    burnedByDate[a.date] = (burnedByDate[a.date] || 0) + (a.calories || 0);
   }
 
   const days = [];
@@ -458,14 +544,16 @@ function loadProgress() {
     d.setDate(d.getDate() - i);
     const iso = toISODateLocal(d);
     const calories = byDate[iso] || 0;
-    days.push({ date: iso, calories, goal, diff: goal !== null ? calories - goal : null });
+    const burned = burnedByDate[iso] || 0;
+    const adjustedGoal = goal !== null ? goal + burned : null;
+    days.push({ date: iso, calories, burned, goal: adjustedGoal, diff: adjustedGoal !== null ? calories - adjustedGoal : null });
   }
 
   const logged = days.filter((d) => d.calories > 0);
   const avgCalories = logged.length
     ? round1(logged.reduce((s, d) => s + d.calories, 0) / logged.length)
     : 0;
-  const daysOnTrack = goal !== null ? logged.filter((d) => d.calories <= goal).length : null;
+  const daysOnTrack = goal !== null ? logged.filter((d) => d.calories <= d.goal).length : null;
 
   renderProgress({
     goal,
@@ -496,7 +584,7 @@ function renderProgress(data) {
         day: "numeric",
       });
       const pct = d.calories === 0 ? 0 : Math.max(4, (d.calories / maxCalories) * 100);
-      const over = goal !== null && d.calories > goal;
+      const over = d.goal !== null && d.calories > d.goal;
       return `
         <div class="progress-day-row">
           <div class="day-label">${label}</div>
