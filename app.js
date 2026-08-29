@@ -4,7 +4,7 @@ const STORAGE_KEYS = {
   goal: "ct_goal",
 };
 
-const MODEL = "gemini-2.0-flash";
+const MODEL = "gemini-3.6-flash";
 const SYSTEM_PROMPT = `You are a nutrition estimation assistant. You will be shown a photo of food \
 and/or a text description of a meal. Identify the food(s) and estimate the total calories and \
 macros for the portion shown/described.
